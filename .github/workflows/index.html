@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Boomchainlab Multi-Network NFT Minter</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-tr from-indigo-900 via-purple-900 to-pink-900 text-white font-sans flex flex-col items-center justify-center min-h-screen px-4">
+
+  <div class="bg-gray-900 bg-opacity-80 p-8 rounded-lg shadow-lg max-w-md w-full">
+    <h1 class="text-3xl font-extrabold mb-6 text-center text-gradient bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+      Boomchainlab NFT Minter
+    </h1>
+
+    <label for="networkSelect" class="block mb-2 font-semibold">Select Network / Contract:</label>
+    <select id="networkSelect" class="w-full mb-6 p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <option value="arbitrum">SwissBan (Fiat24) - Arbitrum</option>
+      <option value="polygon">Chonky Cosmos NFT - Polygon</option>
+    </select>
+
+    <button id="connectBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded mb-4 transition">
+      Connect Wallet
+    </button>
+    <p id="walletAddress" class="text-center text-gray-300 mb-6 break-all"></p>
+
+    <label for="recipient" class="block mb-2 font-semibold">Recipient Address</label>
+    <input
+      id="recipient"
+      type="text"
+      placeholder="0x..."
+      class="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white mb-6 focus:outline-none focus:ring-2 focus:ring-purple-500"
+    />
+
+    <button id="mintBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded transition">
+      Mint NFT
+    </button>
+
+    <p id="status" class="mt-6 text-center text-gray-400 min-h-[1.5em]"></p>
+  </div>
+
+<script>
+  const contracts = {
+    arbitrum: {
+      address: "0x133caeeca096ca54889db71956c7f75862ead7a0", // SwissBan on Arbitrum
+      abi: ["function mint(address to) public"],
+    },
+    polygon: {
+      address: "0xbc9c058f1a5977134d7d2553e757be52884ef0b9", // Chonky Cosmos on Polygon
+      abi: ["function mint(address to) public"],
+    },
+  };
+
+  let provider, signer, contract;
+
+  const connectBtn = document.getElementById("connectBtn");
+  const mintBtn = document.getElementById("mintBtn");
+  const walletAddressP = document.getElementById("walletAddress");
+  const recipientInput = document.getElementById("recipient");
+  const networkSelect = document.getElementById("networkSelect");
+  const statusP = document.getElementById("status");
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      alert("MetaMask not detected. Please install MetaMask.");
+      return;
+    }
+    try {
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      const userAddress = await signer.getAddress();
+      walletAddressP.textContent = `Connected: ${userAddress}`;
+      loadContract();
+      statusP.textContent = "";
+    } catch (err) {
+      console.error(err);
+      alert("Failed to connect wallet.");
+    }
+  }
+
+  function loadContract() {
+    const selected = networkSelect.value;
+    const { address, abi } = contracts[selected];
+    contract = new ethers.Contract(address, abi, signer);
+  }
+
+  async function mintNFT() {
+    if (!contract) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    const recipient = recipientInput.value.trim();
+    if (!ethers.utils.isAddress(recipient)) {
+      alert("Invalid recipient address.");
+      return;
+    }
+    try {
+      statusP.textContent = "Submitting transaction...";
+      const tx = await contract.mint(recipient);
+      statusP.textContent = "Transaction submitted. Waiting for confirmation...";
+      await tx.wait();
+      statusP.textContent = `✅ NFT minted to ${recipient}`;
+    } catch (err) {
+      console.error(err);
+      statusP.textContent = "❌ Minting failed. See console for details.";
+    }
+  }
+
+  connectBtn.addEventListener("click", connectWallet);
+  mintBtn.addEventListener("click", mintNFT);
+  networkSelect.addEventListener("change", () => {
+    if (signer) loadContract();
+    statusP.textContent = "";
+    recipientInput.value = "";
+  });
+</script>
+
+</body>
+</html>
